@@ -1,0 +1,162 @@
+[
+  {
+    "client_id": "acme-42",
+    "date": "2024-06-10",
+    "hours_worked": 5,
+    "rate_per_hour": 1000,
+    "project": "Landing Page Redesign",
+    "description": "Worked on responsive layout"
+  },
+  {
+    "client_id": "acme-42",
+    "date": "2024-06-11",
+    "hours_worked": 4,
+    "rate_per_hour": 1000,
+    "project": "Landing Page Redesign",
+    "description": "Implemented mobile navigation"
+  },
+  {
+    "client_id": "beta-17",
+    "date": "2024-06-09",
+    "hours_worked": 6,
+    "rate_per_hour": 850,
+    "project": "E-commerce Platform",
+    "description": "Optimized checkout process"
+  },
+  {
+    "client_id": "gamma-03",
+    "date": "2024-06-08",
+    "hours_worked": 7,
+    "rate_per_hour": 900,
+    "project": "SEO Optimization",
+    "description": "Keyword research and analysis"
+  },
+  {
+    "client_id": "acme-42",
+    "date": "2024-06-12",
+    "hours_worked": 3,
+    "rate_per_hour": 1000,
+    "project": "Landing Page Redesign",
+    "description": "Fixed cross-browser issues"
+  },
+  {
+    "client_id": "delta-29",
+    "date": "2024-06-07",
+    "hours_worked": 8,
+    "rate_per_hour": 950,
+    "project": "CRM Integration",
+    "description": "Integrated third-party APIs"
+  },
+  {
+    "client_id": "beta-17",
+    "date": "2024-06-10",
+    "hours_worked": 5,
+    "rate_per_hour": 850,
+    "project": "E-commerce Platform",
+    "description": "Improved product search functionality"
+  },
+  {
+    "client_id": "epsilon-55",
+    "date": "2024-06-06",
+    "hours_worked": 4,
+    "rate_per_hour": 1100,
+    "project": "Mobile App Development",
+    "description": "Developed user authentication module"
+  },
+  {
+    "client_id": "gamma-03",
+    "date": "2024-06-11",
+    "hours_worked": 6,
+    "rate_per_hour": 900,
+    "project": "SEO Optimization",
+    "description": "Content optimization for blogs"
+  },
+  {
+    "client_id": "delta-29",
+    "date": "2024-06-09",
+    "hours_worked": 7,
+    "rate_per_hour": 950,
+    "project": "CRM Integration",
+    "description": "Database schema updates"
+  },
+  {
+    "client_id": "zeta-88",
+    "date": "2024-06-05",
+    "hours_worked": 5,
+    "rate_per_hour": 1200,
+    "project": "Cloud Migration",
+    "description": "Migrated databases to cloud"
+  },
+  {
+    "client_id": "epsilon-55",
+    "date": "2024-06-07",
+    "hours_worked": 3,
+    "rate_per_hour": 1100,
+    "project": "Mobile App Development",
+    "description": "Bug fixes and testing"
+  },
+  {
+    "client_id": "acme-42",
+    "date": "2024-06-13",
+    "hours_worked": 4,
+    "rate_per_hour": 1000,
+    "project": "Landing Page Redesign",
+    "description": "Enhanced accessibility features"
+  },
+  {
+    "client_id": "beta-17",
+    "date": "2024-06-12",
+    "hours_worked": 6,
+    "rate_per_hour": 850,
+    "project": "E-commerce Platform",
+    "description": "Implemented payment gateway"
+  },
+  {
+    "client_id": "gamma-03",
+    "date": "2024-06-10",
+    "hours_worked": 5,
+    "rate_per_hour": 900,
+    "project": "SEO Optimization",
+    "description": "Backlink strategy implementation"
+  },
+  {
+    "client_id": "delta-29",
+    "date": "2024-06-08",
+    "hours_worked": 4,
+    "rate_per_hour": 950,
+    "project": "CRM Integration",
+    "description": "User interface improvements"
+  },
+  {
+    "client_id": "zeta-88",
+    "date": "2024-06-06",
+    "hours_worked": 7,
+    "rate_per_hour": 1200,
+    "project": "Cloud Migration",
+    "description": "Set up cloud infrastructure"
+  },
+  {
+    "client_id": "epsilon-55",
+    "date": "2024-06-08",
+    "hours_worked": 5,
+    "rate_per_hour": 1100,
+    "project": "Mobile App Development",
+    "description": "Implemented push notifications"
+  },
+  {
+    "client_id": "acme-42",
+    "date": "2024-06-14",
+    "hours_worked": 2,
+    "rate_per_hour": 1000,
+    "project": "Landing Page Redesign",
+    "description": "Final review and deployment"
+  },
+  {
+    "client_id": "beta-17",
+    "date": "2024-06-13",
+    "hours_worked": 4,
+    "rate_per_hour": 850,
+    "project": "E-commerce Platform",
+    "description": "Performance optimization"
+  }
+]
