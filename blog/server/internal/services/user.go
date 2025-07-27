@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"main/internal/contexter"
 	"main/internal/database"
 	"main/pkg/response"
@@ -10,6 +11,7 @@ import (
 
 func UserProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := contexter.UserFromContext(r.Context())
+	fmt.Println("the user is logged")
 	if !ok {
 		response.Error(w, "user must be logged in to get its profile", http.StatusUnauthorized)
 		return

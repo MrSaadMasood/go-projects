@@ -88,7 +88,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"email": email})
-	token, err := claims.SignedString(env.JwtSecret)
+	token, err := claims.SignedString([]byte(env.JwtSecret))
 	if err != nil {
 		response.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -97,7 +97,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{
 		"data": map[string]string{
-			token: token,
+			"token": token,
 		},
 	})
 }

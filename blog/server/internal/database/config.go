@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"main/internal/env"
 
 	_ "github.com/lib/pq"
 )
@@ -11,7 +12,8 @@ var DB *sql.DB
 
 func Connect() {
 	var err error
-	DB, err = sql.Open("postgres", "postgres://admin:admin@localhost:5432/blog")
+
+	DB, err = sql.Open("postgres", env.PostgresURL)
 	if err != nil {
 		panic(fmt.Errorf("database connection failed %w", err))
 	}
@@ -22,27 +24,31 @@ func Connect() {
 }
 
 func Setup(db *sql.DB) error {
-	createUserTable := `CREATE TABLE users (
+	createUserTable := `CREATE TABLE IF NOT EXISTS users (
+		id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL,
 		password VARCHAR(255) NOT NULL,
 	  email VARCHAR(255) NOT NULL UNIQUE,
 	  created_at DATE NOT NULL
-	) IF NOT EXISTS`
+	);`
 
-	createBlogsTable := `CREATE TABLE blogs (
+	createBlogsTable := `CREATE TABLE IF NOT EXISTS blogs (
+		id SERIAL PRIMARY KEY,
 	  author_id SERIAL REFERENCES users,
     title VARCHAR(500) NOT NULL,
 	  body TEXT NOT NULL,
 	  created_at DATE NOT NULL,
 	  updated_at DATE NOT NULL
-	) IF NOT EXISTS`
+	);`
 
-	createCommentsTable := `CREATE TABLE comments (
+	createCommentsTable := `CREATE TABLE IF NOT EXISTS comments (
+		id SERIAL PRIMARY KEY,
 	  author_id SERIAL REFERENCES users,
+		blog_id SERIAL REFERENCES blogs,
 	  body VARCHAR(500) NOT NULL,
 	  created_at DATE NOT NULL, 
 	  updated_at DATE NOT NULL
-	) IF NOT EXISTS`
+	);`
 
 	_, err := db.Query(createUserTable)
 	if err != nil {

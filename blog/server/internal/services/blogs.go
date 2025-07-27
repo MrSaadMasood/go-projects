@@ -26,7 +26,7 @@ func AllBlogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	var blogList []Blog
+	blogList := make([]Blog, 0)
 
 	for rows.Next() {
 		var blog Blog
@@ -45,7 +45,7 @@ func AllBlogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func BlogByID(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue("blogId")
 
 	blogByIDQuery := "SELECT id, title, body FROM blogs WHERE id = $1"
 	var blog Blog
@@ -86,7 +86,7 @@ func CreateBlog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	createBlogQuery := `
-	INSERT INTO blogs (author_id, title, body, create_at, updated_at)
+	INSERT INTO blogs (author_id, title, body, created_at, updated_at)
 	VALUES( ( SELECT id FROM users WHERE email = $1), $2, $3, $4, $5)
 	`
 	date := time.Now().UTC()
@@ -105,6 +105,7 @@ func CreateBlog(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateBlog(w http.ResponseWriter, r *http.Request) {
+	blogID := r.PathValue("blogId")
 	user, ok := contexter.UserFromContext(r.Context())
 	if !ok {
 		response.Error(w, "please authenticate to create a post", http.StatusUnauthorized)
@@ -112,8 +113,8 @@ func UpdateBlog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type Blog struct {
-		Title string `json:"title" validate:"min=4,max=250"`
-		Body  string `json:"body" validate:"min=4,max=1000"`
+		Title string `json:"title" validate:"max=250"`
+		Body  string `json:"body" validate:"max=1000"`
 	}
 	var blog Blog
 	json.NewDecoder(r.Body).Decode(&blog)
@@ -133,15 +134,19 @@ func UpdateBlog(w http.ResponseWriter, r *http.Request) {
 	setQuery := "SET"
 
 	if blog.Title != "" {
-		setQuery += fmt.Sprintf("title = %s", blog.Title)
+		setQuery += fmt.Sprintf(" title = '%s'", blog.Title)
+		if blog.Body != "" {
+			setQuery += ","
+		}
 	}
 
 	if blog.Body != "" {
-		setQuery += fmt.Sprintf("body = %s", blog.Body)
+		setQuery += fmt.Sprintf(" body = '%s'", blog.Body)
 	}
 
-	updateQuery := "UPDATE blogs" + " " + setQuery + " " + fmt.Sprintf("updated_at = %s", time.Now().UTC().String()) + " WHERE author_id = ( SELECT * FROM users WHERE email = $1)"
-	_, err = database.DB.Query(updateQuery, user.Email)
+	updateQuery := "UPDATE blogs" + " " + setQuery + " " + ", updated_at = $1" +
+		" WHERE author_id = ( SELECT id FROM users WHERE email = " + fmt.Sprintf("'%s') AND id = %s;", user.Email, blogID)
+	_, err = database.DB.Query(updateQuery, time.Now().UTC())
 	if err != nil {
 		response.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -154,7 +159,7 @@ func UpdateBlog(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeletBlogByID(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue("blogId")
 
 	deleteQuery := "DELETE FROM blogs WHERE id = $1"
 	rows, err := database.DB.Query(deleteQuery, id)

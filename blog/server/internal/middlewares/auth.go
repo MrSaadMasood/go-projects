@@ -26,7 +26,7 @@ func Auth(next http.Handler) http.Handler {
 		}
 		var parsedClaims ParsedClaims
 		token, err := jwt.ParseWithClaims(bearerToken, &parsedClaims, func(t *jwt.Token) (any, error) {
-			return env.JwtSecret, nil
+			return []byte(env.JwtSecret), nil
 		})
 		if err != nil {
 			response.Error(w, err.Error(), http.StatusUnauthorized)
