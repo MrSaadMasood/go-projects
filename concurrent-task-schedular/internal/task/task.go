@@ -2,6 +2,7 @@
 package task
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -12,10 +13,12 @@ type Logger interface {
 	Log(message string)
 }
 type task struct {
-	logger  Logger
-	id      string
-	message string
-	timeout *time.Duration
+	logger     Logger
+	id         string
+	message    string
+	timeout    *time.Duration
+	ctx        context.Context
+	cancelFunc context.CancelFunc
 }
 
 func (t task) execute() {
@@ -33,6 +36,10 @@ func (t task) GetTimeout() *time.Duration {
 	}
 }
 
+func (t task) Cancel() {
+	t.cancelFunc()
+}
+
 type PrintTask struct {
 	task
 	repeat int
@@ -40,8 +47,14 @@ type PrintTask struct {
 
 func (pt PrintTask) Execute() error {
 	for i := range pt.repeat {
-		pt.logger.Log("Task with id: " + pt.id + "repeated " + strconv.Itoa(i) + "times")
-		pt.execute()
+		select {
+		case <-pt.ctx.Done():
+			pt.logger.Log("Cancelled In Progress Print Task: ----->" + pt.id)
+			return nil
+		default:
+			pt.logger.Log("Task with id: " + pt.id + "repeated " + strconv.Itoa(i) + "times")
+			pt.execute()
+		}
 	}
 	return nil
 }
@@ -53,15 +66,22 @@ type SleepTask struct {
 
 func (st SleepTask) Execute() error {
 	timer := time.NewTimer(st.delay)
-	<-timer.C
-	st.execute()
-	return nil
+	select {
+	case <-timer.C:
+		st.execute()
+		return nil
+	case <-st.ctx.Done():
+		st.logger.Log("Cancelled In Progress Sleep Task: ----->" + st.id)
+		return nil
+	}
 }
 
 func NewPrintTask(message string, logger Logger, repeat int, timeout *time.Duration) PrintTask {
-	return PrintTask{task: task{message: message, logger: logger, id: uuid.NewString(), timeout: timeout}, repeat: repeat}
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	return PrintTask{task: task{message: message, logger: logger, id: uuid.NewString(), timeout: timeout, ctx: ctx, cancelFunc: cancelFunc}, repeat: repeat}
 }
 
 func NewSleepTask(message string, logger Logger, delay time.Duration, timeout *time.Duration) SleepTask {
-	return SleepTask{task: task{message: message, logger: logger, id: uuid.NewString(), timeout: timeout}, delay: delay}
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	return SleepTask{task: task{message: message, logger: logger, id: uuid.NewString(), timeout: timeout, ctx: ctx, cancelFunc: cancelFunc}, delay: delay}
 }

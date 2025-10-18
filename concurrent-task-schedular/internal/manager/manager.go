@@ -3,9 +3,7 @@ package manager
 
 import (
 	"context"
-	"fmt"
 	"math"
-	"strconv"
 	"sync"
 	"time"
 
@@ -35,6 +33,7 @@ var taskStatusEnum = struct {
 type Task interface {
 	Execute() error
 	GetTimeout() *time.Duration
+	Cancel()
 }
 
 type EnqueueTask struct {
@@ -55,53 +54,34 @@ type taskManager struct {
 	activeTasks    ExtendedTaskMap
 	waitingTasks   ExtendedTaskMap
 	logger         Logger
-	running        bool
-	shutdown       bool
+	shutdownCtx    context.Context
+	shutDown       context.CancelFunc
 	done           chan bool
 	rwMutex        sync.RWMutex
+	wg             sync.WaitGroup
 }
 
 func (tm *taskManager) Enqueue(et ...EnqueueTask) {
-	if tm.shutdown {
+	select {
+	case <-tm.shutdownCtx.Done():
 		tm.logger.Log("Task Manager Shutting Down. Cannot Accept More Tasks")
 		return
-	}
-
-	for _, v := range et {
-		tm.safeWrite(func() {
+	default:
+		for _, v := range et {
 			id := uuid.NewString()
 			tm.waitingTasks[id] = ExtendedTask{task: v.Task, status: taskStatusEnum.queued, delay: v.Delay}
-		})
-	}
-
-	if !tm.running {
-		tm.running = true
-		tm.Run()
-	}
-}
-
-func (tm *taskManager) ListTasks() {
-	tm.rwMutex.RLock()
-	defer tm.rwMutex.RUnlock()
-
-	tm.logger.Log("Listing Active Tasks: " + strconv.Itoa(len(tm.activeTasks)))
-	for k, v := range tm.activeTasks {
-		fmt.Println("Active task ID: "+k, " VALUE: ", v.task, " Status: ", v.status, " Delay", v.delay)
-	}
-
-	tm.logger.Log("Listing Waiting Tasks: " + strconv.Itoa(len(tm.waitingTasks)))
-	for k, v := range tm.waitingTasks {
-		if v.status != taskStatusEnum.queued {
-			continue
 		}
-		fmt.Println("Waiting task ID: "+k, " VALUE: ", v.task, " Status: ", v.status, " Delay", v.delay)
+
+		tm.Run()
+		tm.wg.Wait()
 	}
+
 }
 
-func (tm *taskManager) CancelTask(id string) {
+func (tm *taskManager) cancelTask(id string) {
 	extendedTask, ok := tm.waitingTasks[id]
 	if ok {
-		tm.RemoveTask(id)
+		tm.removeTask(id)
 		tm.logger.Log("Waiting Or Cancelled Task Deleted" + id)
 		return
 	}
@@ -111,16 +91,14 @@ func (tm *taskManager) CancelTask(id string) {
 		return
 	}
 
-	extendedTask.timer.Stop()
-
-	delete(tm.activeTasks, id)
+	tm.removeTask(id)
 	extendedTask.status = taskStatusEnum.cancelled
 	tm.waitingTasks[id] = extendedTask
 
 	tm.logger.Log("Active Task Stopped and Cancelled: " + id)
 }
 
-func (tm *taskManager) RemoveTask(id string) {
+func (tm *taskManager) removeTask(id string) {
 	_, wok := tm.waitingTasks[id]
 	activeTask, aok := tm.activeTasks[id]
 	if wok {
@@ -130,6 +108,7 @@ func (tm *taskManager) RemoveTask(id string) {
 
 	if aok {
 		activeTask.timer.Stop()
+		activeTask.task.Cancel()
 		delete(tm.activeTasks, id)
 		return
 	}
@@ -138,9 +117,15 @@ func (tm *taskManager) RemoveTask(id string) {
 }
 
 func (tm *taskManager) GracefulShutdown() {
-	tm.shutdown = true
-	for _, v := range tm.activeTasks {
-		v.timer.Stop()
+	tm.shutDown()
+
+	tm.wg.Wait()
+
+	tm.rwMutex.Lock()
+	defer tm.rwMutex.Unlock()
+
+	for id := range tm.activeTasks {
+		tm.cancelTask(id)
 	}
 
 	defer func() {
@@ -152,68 +137,60 @@ func (tm *taskManager) GracefulShutdown() {
 }
 
 func (tm *taskManager) Run() {
-	if tm.shutdown {
-		return
-	}
 
-	var wg sync.WaitGroup
-	for len(tm.waitingTasks) != 0 {
-		safeConcurrency := int(math.Min(float64(tm.maxConcurrency), float64(len(tm.waitingTasks))))
-		count := 0
-		for k, v := range tm.waitingTasks {
+	tm.rwMutex.Lock()
+	defer tm.rwMutex.Unlock()
+
+	safeConcurrency := int(math.Min(float64(tm.maxConcurrency), float64(len(tm.waitingTasks))))
+	count := 0
+
+	for k, v := range tm.waitingTasks {
+
+		select {
+		case <-tm.shutdownCtx.Done():
+			return
+		default:
 			if count > safeConcurrency {
 				break
 			}
 			count++
 
-			wg.Add(1)
-
-			tm.safeDelete(tm.waitingTasks, k)
+			tm.wg.Add(1)
+			delete(tm.waitingTasks, k)
 			v.status = taskStatusEnum.running
 			timer := time.AfterFunc(v.delay, func() {
-				tm.execute(k, &v, &wg)
+				tm.execute(k, &v)
 			})
 			v.timer = timer
-			tm.safeWrite(func() {
-				tm.activeTasks[k] = v
-			})
+			tm.activeTasks[k] = v
 
 		}
-		wg.Wait()
-		tm.running = false
-
 	}
+
 }
 
-func (tm *taskManager) safeDelete(etm ExtendedTaskMap, id string) {
-	tm.rwMutex.Lock()
-	defer tm.rwMutex.Unlock()
-	delete(etm, id)
-}
-
-func (tm *taskManager) safeWrite(f func()) {
-	tm.rwMutex.Lock()
-	defer tm.rwMutex.Unlock()
-	f()
-}
-
-func (tm *taskManager) execute(id string, et *ExtendedTask, wg *sync.WaitGroup) {
+func (tm *taskManager) execute(id string, et *ExtendedTask) {
 	done := make(chan bool)
 
 	timeout := et.task.GetTimeout()
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 
 	go func() {
+
+		tm.rwMutex.Lock()
+		defer tm.rwMutex.Unlock()
+
 		defer func() {
 			cancel()
-			wg.Done()
+			tm.wg.Done()
 		}()
 
 		select {
+		case <-tm.shutdownCtx.Done():
+			et.task.Cancel()
+			return
 		case <-ctx.Done():
-			tm.safeWrite(func() {
-				tm.CancelTask(id)
-			})
+			tm.cancelTask(id)
 		case success := <-done:
 			if !success {
 				et.status = taskStatusEnum.failed
@@ -234,5 +211,6 @@ func (tm *taskManager) execute(id string, et *ExtendedTask, wg *sync.WaitGroup) 
 }
 
 func CreateNewTaskManager(logger Logger, maxConcurrency int) taskManager {
-	return taskManager{activeTasks: make(ExtendedTaskMap), waitingTasks: make(ExtendedTaskMap), logger: logger, maxConcurrency: maxConcurrency, done: make(chan bool)}
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	return taskManager{activeTasks: make(ExtendedTaskMap), waitingTasks: make(ExtendedTaskMap), logger: logger, maxConcurrency: maxConcurrency, done: make(chan bool), shutdownCtx: ctx, shutDown: cancelFunc}
 }

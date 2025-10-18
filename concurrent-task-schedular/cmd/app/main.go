@@ -35,7 +35,7 @@ func main() {
 
 	taskManager := manager.CreateNewTaskManager(&taskManagerLogger, env.MaxConcurrency)
 
-	TaskCount := 10
+	TaskCount := 20
 
 	tasks := make([]manager.EnqueueTask, 0)
 	for i := range TaskCount {
@@ -54,7 +54,8 @@ func main() {
 				"Sleep Task"+strconv.Itoa(i),
 				&sleepTaskLogger,
 				time.Second*time.Duration(rand.Intn(20)),
-				randomTimeoutGenerator())
+				randomTimeoutGenerator(),
+			)
 		}
 		tasks = append(tasks, manager.EnqueueTask{
 			Task: t, Delay: time.Second * time.Duration(rand.Intn(10)),
@@ -68,7 +69,6 @@ func main() {
 	go func() {
 		closeSignal := <-sig
 		fmt.Println("the close signal is", closeSignal)
-		taskManager.ListTasks()
 		taskManager.GracefulShutdown()
 		done <- true
 	}()
